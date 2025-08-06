@@ -1,0 +1,35 @@
+services:
+  backend1:
+    build:
+      context: ./rest-backend-project
+    container_name: rest_backend1
+    ports:
+      - "8080"
+    networks:
+      - rest_backend_net
+
+  backend2:
+    build:
+      context: ./rest-backend-project
+    container_name: rest_backend2
+    ports:
+      - "8080"
+    networks:
+      - rest_backend_net
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_lb
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8081:8081"
+    depends_on:
+      - backend1
+      - backend2
+    networks:
+      - rest_backend_net
+
+networks:
+  rest_backend_net:
+    driver: bridge

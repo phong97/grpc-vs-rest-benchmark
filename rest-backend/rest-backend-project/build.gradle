@@ -1,0 +1,55 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.4'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.grpc'
+//version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// Explicitly specify the main class
+springBoot {
+    mainClass = 'com.demo.rest.RestBackendApplication'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // exclude default Tomcat
+    implementation('org.springframework.boot:spring-boot-starter-web') {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+    }
+    implementation 'org.springframework.boot:spring-boot-starter-jetty'
+
+    // test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+jar {
+    dependsOn bootJar
+    doLast {
+        copy {
+            from bootJar.archiveFile
+            into destinationDirectory
+            rename { bootJar.archiveFileName.get() }
+        }
+    }
+}
+
+bootJar {
+    archiveBaseName = 'rest-backend'
+    archiveClassifier = ''
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
