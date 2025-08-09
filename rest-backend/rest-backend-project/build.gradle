@@ -36,18 +36,13 @@ dependencies {
 
 jar {
     dependsOn bootJar
-    doLast {
-        copy {
-            from bootJar.archiveFile
-            into destinationDirectory
-            rename { bootJar.archiveFileName.get() }
-        }
-    }
+    enabled = false  // Disable plain JAR since we want the boot JAR
 }
 
 bootJar {
     archiveBaseName = 'rest-backend'
     archiveClassifier = ''
+    archiveFileName = 'rest-backend.jar'  // Explicitly set the filename
 }
 
 tasks.named('test') {

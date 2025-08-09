@@ -3,8 +3,6 @@ services:
     build:
       context: ./rest-backend-project
     container_name: rest_backend1
-    ports:
-      - "8080"
     networks:
       - rest_backend_net
 
@@ -12,8 +10,6 @@ services:
     build:
       context: ./rest-backend-project
     container_name: rest_backend2
-    ports:
-      - "8080"
     networks:
       - rest_backend_net
 
