@@ -27,27 +27,79 @@ This project implements identical messaging API functionality using both gRPC an
 
 ```
 grpc-vs-rest-benchmark/
-├── rest-backend/
-│   ├── rest-backend-project/          # Spring Boot REST service
-│   │   ├── src/main/java/com/demo/rest/
-│   │   │   ├── RestBackendApplication.java
-│   │   │   ├── config/VirtualThreadConfig.java
-│   │   │   └── controller/ZaloMockController.java
+├── grpc/
+│   ├── docker-compose.yml
+│   ├── envoy/
+│   │   └── envoy.yaml
+│   ├── grpc-backend-project/
 │   │   ├── build.gradle
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   ├── src/
+│   │   │   ├── main/
+│   │   │   │   ├── java/com/
+│   │   │   │   ├── proto/message.proto
+│   │   │   │   └── resources/application.properties
+│   │   │   └── test/java/com/
+│   ├── monitoring/
+│   │   ├── prometheus.yml
+│   │   └── grafana/
+│   │       ├── datasources/
+│   │       └── dashboards/
+├── rest/
+│   ├── docker-compose.yml
 │   ├── nginx/
-│   │   └── nginx.conf                 # Load balancer configuration
-│   └── docker-compose.yml             # Multi-instance deployment
-├── grpc-backend/
-│   └── grpc-backend-project/          # Spring Boot gRPC service
-│       ├── src/main/
-│       │   ├── java/com/grpc/grpcbackend/
-│       │   └── proto/message.proto    # gRPC service definition
-│       └── build.gradle
-└── README.md
+│   │   └── nginx.conf
+│   ├── rest-backend-project/
+│   │   ├── build.gradle
+│   │   ├── Dockerfile
+│   │   ├── src/
+│   │   │   ├── main/
+│   │   │   │   ├── java/com/
+│   │   │   │   └── resources/application.properties
+│   │   │   └── test/java/com/
+├── thrift/
+│   └── thrift-backend-project/
+│       ├── build.gradle
+│       ├── src/
+│       │   ├── main/
+│       │   │   ├── java/com/
+│       │   │   └── resources/application.properties
+│       │   └── test/java/com/
+├── README.md
+└── note.txt
 ```
 
 ## 🚀 Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/grpc-vs-rest-benchmark.git
+   cd grpc-vs-rest-benchmark
+   ```
+
+2. **Build the backend services**
+   ```bash
+   cd rest/rest-backend-project
+   ./gradlew build
+   cd ../../grpc/grpc-backend-project
+   ./gradlew build
+   ```
+
+3. **Start the services with Docker Compose**
+   - For REST:
+     ```bash
+     cd rest
+     docker-compose up --build
+     ```
+   - For gRPC:
+     ```bash
+     cd grpc
+     docker-compose up --build
+     ```
+
+4. **Access monitoring dashboards**
+   - Prometheus and Grafana are available in the `grpc/monitoring` directory.
+   - Grafana dashboards for system, JVM, and Spring Boot metrics are pre-configured.
 
 ### Prerequisites
 - **Java 21+** (for Virtual Threads support)
@@ -77,6 +129,12 @@ cd grpc-backend/grpc-backend-project
 ./gradlew bootRun
 # gRPC service runs on default port
 ```
+
+## 📊 Monitoring & Metrics
+
+- **Spring Boot Actuator**: Exposes metrics at `/actuator/prometheus` for Prometheus scraping.
+- **Prometheus**: Configured to collect metrics from both Envoy and Spring Boot backends.
+- **Grafana**: Visualizes performance, JVM, and application metrics.
 
 ## 📝 API Documentation
 
@@ -332,10 +390,9 @@ docker build -t grpc-backend ./grpc-backend/grpc-backend-project
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📚 Additional Resources
+## 📚 References
 
-- [Spring Boot Documentation](https://spring.io/projects/spring-boot)
-- [Spring gRPC Documentation](https://docs.spring.io/spring-grpc/reference/index.html)
-- [Java Virtual Threads Guide](https://openjdk.org/jeps/444)
-- [gRPC Performance Best Practices](https://grpc.io/docs/guides/performance/)
-- [Protocol Buffers Documentation](https://developers.google.com/protocol-buffers)
+- [Spring Boot Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/)
+- [gRPC Java](https://grpc.io/docs/languages/java/)
+- [Prometheus](https://prometheus.io/)
+- [Grafana](https://grafana.com/)
