@@ -7,6 +7,8 @@ import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.grpc.server.service.GrpcService;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.util.Random;
 import java.util.UUID;
@@ -20,6 +22,22 @@ public class MessageService extends MessageServiceGrpc.MessageServiceImplBase {
 
     private final Random random = new Random();
     private static final Logger logger = LoggerFactory.getLogger(MessageService.class);
+
+    private final Counter sendMessageCounter;
+    private final Counter sendMessageNoDelayCounter;
+
+    public MessageService(MeterRegistry meterRegistry) {
+        this.sendMessageCounter = Counter.builder("message_service_send_total")
+                .description("Số lần gọi sendMessage()")
+                .tag("method", "sendMessage")
+                .register(meterRegistry);
+
+        this.sendMessageNoDelayCounter = Counter.builder("message_service_send_no_delay_total")
+                .description("Số lần gọi sendMessageNoRandomDelay()")
+                .tag("method", "sendMessageNoRandomDelay")
+                .register(meterRegistry);
+    }
+
 
     @Override
     public void sendMessage(MessageRequest request, StreamObserver<MessageResponse> responseObserver) {
@@ -45,6 +63,8 @@ public class MessageService extends MessageServiceGrpc.MessageServiceImplBase {
         } catch (Exception e) {
             logger.error("Error processing sendMessage request: {}", e.getMessage(), e);
             responseObserver.onError(e);
+        } finally {
+            sendMessageCounter.increment();
         }
     }
 
@@ -84,6 +104,8 @@ public class MessageService extends MessageServiceGrpc.MessageServiceImplBase {
         } catch (Exception e) {
             logger.error("Error processing sendMessageNoRandomDelay request: {}", e.getMessage(), e);
             responseObserver.onError(e);
+        } finally {
+            sendMessageNoDelayCounter.increment();
         }
     }
 }
