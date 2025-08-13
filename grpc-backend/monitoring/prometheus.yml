@@ -6,3 +6,8 @@ scrape_configs:
     static_configs:
       - targets: ['envoy:9901']
     metrics_path: '/stats/prometheus'
+
+  - job_name: 'grpc-backend'
+    static_configs:
+      - targets: ['grpc1:8080','grpc2:8080']
+    metrics_path: '/actuator/prometheus'

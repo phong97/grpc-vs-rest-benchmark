@@ -23,6 +23,12 @@ static_resources:
                           route:
                             cluster: grpc_service_cluster
                 http_filters:
+                  - name: envoy.filters.http.grpc_stats
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_stats.v3.FilterConfig
+                      emit_filter_state: true
+                      stats_for_all_methods: true
+                      enable_upstream_stats: true
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -34,16 +40,20 @@ static_resources:
                       log_format:
                         json_format:
                           start_time: "%START_TIME%"
-                          response_code: "%RESPONSE_CODE%"
                           method: "%REQ(:METHOD)%"
+                          path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
                           request_id: "%REQ(X-REQUEST-ID)%"
+                          http_status: "%RESPONSE_CODE%"
+                          grpc_status: "%GRPC_STATUS%"
+                          upstream_host: "%UPSTREAM_HOST%"
+                          response_flags: "%RESPONSE_FLAGS%"
+                          duration_ms: "%DURATION%"
 
   clusters:
     - name: grpc_service_cluster
       type: STRICT_DNS
       connect_timeout: 1s
       lb_policy: ROUND_ROBIN
-      transport_socket_matches: []
       upstream_connection_options:
         tcp_keepalive: {}
       typed_extension_protocol_options:
@@ -79,4 +89,4 @@ admin:
         log_format:
           json_format:
             start_time: "[ADMIN] %START_TIME%"
-            response_code: "%RESPONSE_CODE%"
+            http_status: "%RESPONSE_CODE%"
