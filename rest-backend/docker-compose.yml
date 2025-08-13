@@ -3,6 +3,10 @@ services:
     build:
       context: ./rest-backend-project
     container_name: rest_backend1
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     networks:
       - rest_backend_net
 
@@ -10,6 +14,10 @@ services:
     build:
       context: ./rest-backend-project
     container_name: rest_backend2
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     networks:
       - rest_backend_net
 

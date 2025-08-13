@@ -1,11 +1,12 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "com.example.grpc";
+option java_package = "com.grpc.grpcbackend";
 option java_outer_classname = "MessageProto";
 
 service MessageService {
   rpc sendMessage(MessageRequest) returns (MessageResponse);
+  rpc sendMessageNoRandomDelay(MessageRequest) returns (MessageResponse);
 }
 
 message MessageRequest {

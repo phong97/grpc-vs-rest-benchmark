@@ -21,11 +21,31 @@ import java.util.UUID;
 public class ZaloMockController {
     private final Random random = new Random();
 
-    @PostMapping("/message/template")
-    public ResponseEntity<Map<String, Object>> sendTemplate(@RequestBody Map<String, Object> request) throws InterruptedException, UnknownHostException {
+    @PostMapping("/send-message")
+    public ResponseEntity<Map<String, Object>> sendMessage(@RequestBody Map<String, Object> request) throws InterruptedException, UnknownHostException {
         simulateDelay();
         String hostname = InetAddress.getLocalHost().getHostName();
         System.out.println("Handled by instance: " + hostname + ", Thread: " + Thread.currentThread());
+
+        Map<String, Object> response = Map.of(
+                "error", 0,
+                "message", "Success",
+                "data", Map.of(
+                        "msg_id", UUID.randomUUID().toString().substring(0, 20),
+                        "sent_time", System.currentTimeMillis(),
+                        "sending_mode", "1",
+                        "quota", Map.of("dailyQuota", "500", "remainingQuota", "499")
+                )
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/send-message-no-random-delay")
+    public ResponseEntity<Map<String, Object>> sendMessageNoRandomDelay(@RequestBody Map<String, Object> request) throws UnknownHostException, InterruptedException {
+        String hostname = InetAddress.getLocalHost().getHostName();
+        System.out.println("Handled by instance: " + hostname + ", Thread: " + Thread.currentThread());
+
+        Thread.sleep(100);
 
         Map<String, Object> response = Map.of(
                 "error", 0,
