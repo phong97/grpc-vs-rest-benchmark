@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # Thu thập metric từ hai container Spring Boot (backend1, backend2)
+  - job_name: 'rest-backend'
+    static_configs:
+      - targets: ['rest_backend1:8080', 'rest_backend2:8080']
+    metrics_path: '/actuator/prometheus'
