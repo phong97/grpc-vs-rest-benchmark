@@ -34,6 +34,19 @@ services:
     networks:
       - rest_backend_net
 
+  # --- Nginx Exporter ---
+  nginx_exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nginx_exporter
+    ports:
+      - "9113:9113"
+    command:
+      - '--nginx.scrape-uri=http://nginx_lb:8081/stub_status'
+    depends_on:
+      - nginx
+    networks:
+      - rest_backend_net
+
   # --- Prometheus ---
   prometheus:
     image: prom/prometheus:latest
