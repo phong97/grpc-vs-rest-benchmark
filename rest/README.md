@@ -82,7 +82,7 @@ Available endpoints:
 Test the mock endpoint with:
 
 ```sh
-curl -X POST http://localhost:8080/zalo/message/template \
+curl -X POST http://localhost:8081/zalo/send-message \
   -H "Content-Type: application/json" \
   -d '{"phone": "0123456789", "template_id": "abc123", "params": {"name": "John"}}'
 ```

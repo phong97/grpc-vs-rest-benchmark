@@ -37,7 +37,7 @@ services:
 
   # --- Nginx Exporter ---
   nginx_exporter:
-    image: quay.io/rebuy/nginx-exporter:v1.1.0
+    image: nginx/nginx-prometheus-exporter:0.11.0
     container_name: nginx_exporter
     environment:
       - NGINX_ACCESS_LOGS=/var/log/nginx/mtail/access.log
@@ -45,7 +45,7 @@ services:
     volumes:
       - ./nginx/mtail:/var/log/nginx/mtail:ro
     ports:
-      - "9397:9397"
+      - "9113:9113"
     depends_on:
       - nginx
     networks:

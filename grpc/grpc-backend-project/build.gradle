@@ -67,9 +67,9 @@ jar {
 }
 
 bootJar {
-    archiveBaseName = 'rest-backend'
+    archiveBaseName = 'grpc-backend'
     archiveClassifier = ''
-    archiveFileName = 'rest-backend.jar'  // Explicitly set the filename
+    archiveFileName = 'grpc-backend.jar'  // Explicitly set the filename
 }
 
 tasks.named('test') {
