@@ -1,5 +1,7 @@
 package com.demo.rest.controller;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,6 +23,21 @@ import java.util.UUID;
 public class ZaloMockController {
     private final Random random = new Random();
 
+    private final Counter sendMessageCounter;
+    private final Counter sendMessageNoDelayCounter;
+
+    public ZaloMockController(MeterRegistry meterRegistry) {
+        this.sendMessageCounter = Counter.builder("message_service_send_total")
+                .description("Số lần gọi sendMessage()")
+                .tag("method", "sendMessage")
+                .register(meterRegistry);
+
+        this.sendMessageNoDelayCounter = Counter.builder("message_service_send_no_delay_total")
+                .description("Số lần gọi sendMessageNoRandomDelay()")
+                .tag("method", "sendMessageNoRandomDelay")
+                .register(meterRegistry);
+    }
+
     @PostMapping("/send-message")
     public ResponseEntity<Map<String, Object>> sendMessage(@RequestBody Map<String, Object> request) throws InterruptedException, UnknownHostException {
         simulateDelay();
@@ -37,6 +54,8 @@ public class ZaloMockController {
                         "quota", Map.of("dailyQuota", "500", "remainingQuota", "499")
                 )
         );
+
+        sendMessageCounter.increment();
         return ResponseEntity.ok(response);
     }
 
@@ -57,6 +76,8 @@ public class ZaloMockController {
                         "quota", Map.of("dailyQuota", "500", "remainingQuota", "499")
                 )
         );
+
+        sendMessageNoDelayCounter.increment();
         return ResponseEntity.ok(response);
     }
 
