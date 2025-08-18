@@ -40,7 +40,7 @@ services:
     container_name: envoy_json_to_grpc
     volumes:
       - ./envoy/envoy_json_to_grpc.yaml:/etc/envoy/envoy.yaml
-      - ./envoy/message.pdb:/data/message.pb
+      - ./envoy/message.pd:/data/message.pb
     ports:
       - "8081:8081"   # json to grpc gateway
       - "9911:9911"   # Envoy admin

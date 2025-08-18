@@ -1,12 +1,26 @@
 syntax = "proto3";
 
+package com.grpc.grpcbackend;
+
 option java_multiple_files = true;
-option java_package = "com.grpc.grpcbackend";
-option java_outer_classname = "MessageProto";
+
+import "google/api/annotations.proto";
+
 
 service MessageService {
-  rpc sendMessage(MessageRequest) returns (MessageResponse);
-  rpc sendMessageNoRandomDelay(MessageRequest) returns (MessageResponse);
+  rpc sendMessage(MessageRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/zalo/send-message"
+      body: "*"
+    };
+  };
+
+  rpc sendMessageNoRandomDelay(MessageRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/zalo/send-message-no-random-delay"
+      body: "*"
+    };
+  };
 }
 
 message MessageRequest {
