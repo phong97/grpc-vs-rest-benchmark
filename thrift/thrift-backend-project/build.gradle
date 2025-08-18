@@ -5,7 +5,6 @@ plugins {
 }
 
 group = 'com.thrift'
-version = '0.0.1-SNAPSHOT'
 
 java {
     toolchain {
@@ -18,11 +17,82 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation('org.springframework.boot:spring-boot-starter-web') {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+    }
+    implementation 'org.springframework.boot:spring-boot-starter-jetty'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'org.apache.thrift:libthrift:0.22.0'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+def thriftSrcDir = "$projectDir/src/main/thrift"
+def genJavaDir = "$projectDir/build/generated-sources/thrift"
+def thriftExecutable = "$projectDir/thrift-gen/thrift-0.9.3"
+
+sourceSets {
+    main {
+        java {
+            srcDir genJavaDir
+        }
+        resources {
+            srcDir 'src/main/resources'
+        }
+    }
+}
+
+// Create one Exec task per .thrift file (avoids deprecated ad-hoc exec)
+def thriftFiles = fileTree(thriftSrcDir) { include '**/*.thrift' }.files
+
+tasks.register('generateThrift') {
+    description = 'Generates Java sources from Thrift IDL'
+    outputs.dir(genJavaDir)
+    doFirst {
+        file(genJavaDir).mkdirs()
+        if (thriftFiles.empty) {
+            logger.lifecycle("No .thrift files found in $thriftSrcDir")
+        }
+    }
+}
+
+thriftFiles.each { thriftFile ->
+    // derive task name without extension (Groovy File has no nameWithoutExtension)
+    def baseName = thriftFile.name.replaceFirst(~/\.[^.]+$/, '')
+    def tName = "thrift_${baseName}"
+    tasks.register(tName, Exec) {
+        group = 'build'
+        description = "Generate Java sources for ${thriftFile.name}"
+        inputs.file(thriftFile)
+        outputs.dir(genJavaDir)
+        // add '-r' to process includes recursively
+        commandLine thriftExecutable, '-r', '-I', thriftSrcDir, '-gen', 'java', '-out', genJavaDir, thriftFile
+        ignoreExitValue = false
+    }
+    tasks.named('generateThrift') { dependsOn tName }
+}
+
+tasks.named('compileJava') {
+    dependsOn 'generateThrift'
+}
+
+jar {
+    dependsOn bootJar
+    enabled = false
+}
+
+bootJar {
+    archiveBaseName = 'thrift-backend'
+    archiveClassifier = ''
+    archiveFileName = 'thrift-backend.jar'
+}
+
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.named('clean') {
+    doLast { delete genJavaDir }
 }
