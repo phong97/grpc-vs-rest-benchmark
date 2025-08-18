@@ -40,8 +40,8 @@ services:
     image: nginx/nginx-prometheus-exporter:0.11.0
     container_name: nginx_exporter
     environment:
-      - NGINX_ACCESS_LOGS=/var/log/nginx/mtail/access.log
-      - NGINX_STATUS_URI=http://nginx_lb:8888/nginx_status
+      - -nginx.scrape-uri=http://nginx_lb:8888/nginx_status
+      - -nginx.access-log=/var/log/nginx/mtail/access.log
     volumes:
       - ./nginx/mtail:/var/log/nginx/mtail:ro
     ports:
