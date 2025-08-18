@@ -2,9 +2,14 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'envoy'
+  - job_name: 'envoy_grpc'
     static_configs:
       - targets: ['envoy:9901']
+    metrics_path: '/stats/prometheus'
+
+  - job_name: 'envoy_grpc_to_json'
+    static_configs:
+      - targets: ['envoy:9911']
     metrics_path: '/stats/prometheus'
 
   - job_name: 'grpc-backend'

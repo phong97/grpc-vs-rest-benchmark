@@ -21,16 +21,34 @@ services:
     networks:
       - grpc_net
 
-  envoy:
+  envoy_grpc:
     image: envoyproxy/envoy:v1.30.1
-    container_name: envoy
+    container_name: envoy_grpc
     volumes:
-      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml
+      - ./envoy/envoy_grpc.yaml:/etc/envoy/envoy.yaml
     ports:
       - "9091:9091"   # gRPC gateway
       - "9901:9901"   # Envoy admin
     networks:
       - grpc_net
+    depends_on:
+      - grpc-backend1
+      - grpc-backend2
+
+  envoy_json_to_grpc:
+    image: envoyproxy/envoy:v1.30.1
+    container_name: envoy_json_to_grpc
+    volumes:
+      - ./envoy/envoy_json_to_grpc.yaml:/etc/envoy/envoy.yaml
+      - ./envoy/message.pdb:/data/message.pb
+    ports:
+      - "8081:8081"   # json to grpc gateway
+      - "9911:9911"   # Envoy admin
+    networks:
+      - grpc_net
+    depends_on:
+      - grpc-backend1
+      - grpc-backend2
 
   prometheus:
     image: prom/prometheus:latest
