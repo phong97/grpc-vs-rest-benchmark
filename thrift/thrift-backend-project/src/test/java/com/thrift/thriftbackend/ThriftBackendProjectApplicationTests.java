@@ -9,5 +9,4 @@ class ThriftBackendProjectApplicationTests {
     @Test
     void contextLoads() {
     }
-
 }
