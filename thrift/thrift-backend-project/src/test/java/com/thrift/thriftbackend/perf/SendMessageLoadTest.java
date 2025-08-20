@@ -11,13 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  *
@@ -55,65 +52,86 @@ public class SendMessageLoadTest {
 //    }
 
     @Test
-    public void loadTest_sendMessageNoDelay() {
-        int numThreads = 10;
-        int totalMessages = 1000;
+    public void loadTest_sendMessageNoDelay() throws InterruptedException {
+        int numThreads = 100; // Number of threads to simulate
+        int totalMessages = 10000;
+        int messagesPerThread = totalMessages / numThreads;
         long startTime = System.currentTimeMillis();
-        test_sendMessageNoDelay(numThreads, totalMessages/2);
-        test_sendMessageNoDelay(numThreads, totalMessages/2);
+
+        ExecutorService vtExec1 = Executors.newVirtualThreadPerTaskExecutor();
+        ExecutorService vtExec2 = Executors.newFixedThreadPool(numThreads); // Using a fixed thread pool to slow down the execution
+
+        CompletableFuture<?>[] completableFutures = new CompletableFuture[numThreads];
+        for (int i = 0; i < numThreads; i++) {
+            final int threadIndex = i;
+            completableFutures[i] = CompletableFuture.runAsync(() -> {
+                logger.info("Thread {} started", threadIndex);
+                long threadStartTime = System.currentTimeMillis();
+                try {
+                    test_sendMessageNoDelay(vtExec2, messagesPerThread);
+                } catch (Exception ex) {
+                    logger.error("Error in thread {}: {}", threadIndex, ex.getMessage(), ex);
+                }
+                long threadEndTime = System.currentTimeMillis();
+                long threadDuration = threadEndTime - threadStartTime;
+                logger.info("Thread {} completed: {} messages, duration: {} ms", threadIndex, messagesPerThread, threadDuration);
+                double messagesPerSecond = (messagesPerThread * 1000.0) / threadDuration;
+                logger.info("Thread {} messages per second: {}", threadIndex, messagesPerSecond);
+                logger.info("Thread {} finished", threadIndex);
+            }, vtExec1);
+        }
+
+        CompletableFuture.allOf(completableFutures).join();
+
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
         logger.info("Load test completed: {} threads, {} messages, duration: {} ms", numThreads, totalMessages, duration);
+        double messagesPerSecond = (totalMessages * 1000.0) / duration;
+        logger.info("Messages per second: {}", messagesPerSecond);
     }
 
-    private void test_sendMessageNoDelay(int numThreads, int totalMessages) {
-        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-        AtomicInteger messageCounter = new AtomicInteger(0);
-
+    private void test_sendMessageNoDelay(ExecutorService executor, int totalMessages) {
+        CompletableFuture<?>[] completableFutures = new CompletableFuture[totalMessages];
         for (int i = 0; i < totalMessages; i++) {
-            executor.submit(() -> {
-                MessageServiceClient.ClientConnection clientConnection = null;
-                try {
-                    clientConnection = messageServiceClient.getClient();
-                } catch (InterruptedException e) {
-                    logger.error("Error getting client connection: {}", e.getMessage(), e);
-                    messageCounter.incrementAndGet();
-                    return;
-                }
-
-                try {
-                    Message message = new Message();
-                    message.setPhone("84987654321")
-                            .setTemplateId("7895417a7d3f9461cd2e")
-                            .setTrackingId("tracking_id")
-                            .setTemplateData(Map.of("ky", "1", "thang", "4/2020",
-                                    "start_date", "20/03/2020",
-                                    "end_date", "20/04/2020",
-                                    "customer", "Nguyễn Thị Hoàng Anh",
-                                    "cid", "PE010299485",
-                                    "address", "VNG Campus, TP.HCM",
-                                    "amount", "100",
-                                    "total", "100000"));
-                    clientConnection.client().sendMessageNoRandomDelay(message);
-                    messageServiceClient.releaseConnection(clientConnection);
-                } catch (TException e) {
-                    logger.error("Error sending message: {}", e.getMessage(), e);
-                    messageServiceClient.invalidateConnection(clientConnection);
-                } finally {
-                    int currentMessage = messageCounter.incrementAndGet();
-                    logger.info("Message sent: {}/{}", currentMessage, totalMessages);
-                }
-            });
+            completableFutures[i] = CompletableFuture.runAsync(this::sendMessageNoDelay, executor);
         }
 
-        while (true) {
-            int currentMessageDone = messageCounter.get();
-            if (currentMessageDone == totalMessages) {
-                logger.info("All messages sent successfully: {}", currentMessageDone);
-                break;
-            }
+        CompletableFuture.allOf(completableFutures).join();
+    }
+
+    private void sendMessageNoDelay() {
+        MessageServiceClient.ClientConnection clientConnection = null;
+        try {
+            clientConnection = messageServiceClient.getClient();
+        } catch (InterruptedException e) {
+            logger.error("Error getting client connection: {}", e.getMessage(), e);
+            return;
         }
 
-        executor.shutdown();
+        if (clientConnection == null) {
+            logger.error("Failed to get client connection");
+            return;
+        }
+
+        try {
+            Message message = new Message();
+            message.setPhone("84987654321")
+                    .setTemplateId("7895417a7d3f9461cd2e")
+                    .setTrackingId("tracking_id")
+                    .setTemplateData(Map.of("ky", "1", "thang", "4/2020",
+                            "start_date", "20/03/2020",
+                            "end_date", "20/04/2020",
+                            "customer", "Nguyễn Thị Hoàng Anh",
+                            "cid", "PE010299485",
+                            "address", "VNG Campus, TP.HCM",
+                            "amount", "100",
+                            "total", "100000"));
+            MessageResponse messageResponse = clientConnection.client().sendMessageNoRandomDelay(message);
+//            logger.info("Response: {}", messageResponse);
+            messageServiceClient.releaseConnection(clientConnection);
+        } catch (TException e) {
+            logger.error("Error sending message: {}", e.getMessage(), e);
+            messageServiceClient.invalidateConnection(clientConnection);
+        }
     }
 }
