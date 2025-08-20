@@ -36,22 +36,6 @@ services:
     networks:
       - rest_backend_net
 
-  # --- Nginx Exporter ---
-  nginx_exporter:
-    image: nginx/nginx-prometheus-exporter:0.11.0
-    container_name: nginx_exporter
-    environment:
-      - -nginx.scrape-uri=http://nginx_lb:8888/nginx_status
-      - -nginx.access-log=/var/log/nginx/mtail/access.log
-    volumes:
-      - ./nginx/mtail:/var/log/nginx/mtail:ro
-    ports:
-      - "9113:9113"
-    depends_on:
-      - nginx
-    networks:
-      - rest_backend_net
-
     # --- telegraf ---
   telegraf:
     image: telegraf:1.30

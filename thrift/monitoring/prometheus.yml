@@ -2,11 +2,6 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'nginx-exporter'
-    static_configs:
-      - targets: [ 'nginx_exporter_thrift:9113' ]
-    metrics_path: '/metrics'
-
   - job_name: 'telegraf'
     static_configs:
       - targets: [ 'telegraf_thrift:9273' ]
@@ -14,5 +9,5 @@ scrape_configs:
 
   - job_name: 'thrift-backend'
     static_configs:
-      - targets: ['thrift_backend1:8888', 'thrift_backend2:8888']
+      - targets: ['thrift_backend1:8080', 'thrift_backend2:8080']
     metrics_path: '/actuator/prometheus'
