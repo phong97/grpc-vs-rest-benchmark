@@ -27,7 +27,7 @@ public class MessageServiceClient {
     @Value("${thrift.server.host:localhost}")
     private String host;
 
-    @Value("${thrift.server.port:9090}")
+    @Value("${thrift.server.port:9091}")
     private int port;
 
     @Value("${thrift.client.pool.maxSize:1000}")

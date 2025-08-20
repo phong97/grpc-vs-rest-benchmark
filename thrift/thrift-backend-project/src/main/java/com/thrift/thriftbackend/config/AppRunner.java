@@ -34,7 +34,7 @@ public class AppRunner implements ApplicationRunner {
     @Value("${thrift.server.host:localhost}")
     private String host;
 
-    @Value("${thrift.server.port:9090}")
+    @Value("${thrift.server.port:9091}")
     private int port;
 
     public AppRunner(MessageServiceHandler messageServiceHandler) {
