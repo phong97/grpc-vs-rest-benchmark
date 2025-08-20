@@ -3,5 +3,5 @@ datasources:
   - name: Prometheus-Thrift
     type: prometheus
     access: proxy
-    url: http://prometheus_thrift:9090
+    url: http://prometheus:9090
     isDefault: true

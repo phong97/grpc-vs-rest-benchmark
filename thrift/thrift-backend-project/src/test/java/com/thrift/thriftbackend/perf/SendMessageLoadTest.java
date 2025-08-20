@@ -29,27 +29,27 @@ public class SendMessageLoadTest {
     @Autowired
     private MessageServiceClient messageServiceClient;
 
-//    @Test
-//    public void test_sendMessageNoDelay() throws TException {
-//        Message message = new Message();
-//        message.setPhone("84987654321")
-//                .setTemplateId("7895417a7d3f9461cd2e")
-//                .setTrackingId("tracking_id")
-//                .setTemplateData(Map.of("ky", "1", "thang", "4/2020",
-//                        "start_date", "20/03/2020",
-//                        "end_date", "20/04/2020",
-//                        "customer", "Nguyễn Thị Hoàng Anh",
-//                        "cid", "PE010299485",
-//                        "address", "VNG Campus, TP.HCM",
-//                        "amount", "100",
-//                        "total", "100000"));
-//        try {
-//            MessageResponse messageResponse = messageServiceClient.getClient().client().sendMessageNoRandomDelay(message);
-//            System.out.println("Response: " + messageResponse);
-//        } catch (Throwable ex) {
-//            logger.error(ex.getMessage(), ex);
-//        }
-//    }
+    @Test
+    public void test_sendMessageNoDelay() throws TException {
+        Message message = new Message();
+        message.setPhone("84987654321")
+                .setTemplateId("7895417a7d3f9461cd2e")
+                .setTrackingId("tracking_id")
+                .setTemplateData(Map.of("ky", "1", "thang", "4/2020",
+                        "start_date", "20/03/2020",
+                        "end_date", "20/04/2020",
+                        "customer", "Nguyễn Thị Hoàng Anh",
+                        "cid", "PE010299485",
+                        "address", "VNG Campus, TP.HCM",
+                        "amount", "100",
+                        "total", "100000"));
+        try {
+            MessageResponse messageResponse = messageServiceClient.getClient().client().sendMessageNoRandomDelay(message);
+            System.out.println("Response: " + messageResponse);
+        } catch (Throwable ex) {
+            logger.error(ex.getMessage(), ex);
+        }
+    }
 
     @Test
     public void loadTest_sendMessageNoDelay() throws InterruptedException {
