@@ -27,17 +27,17 @@ services:
       - ./nginx/mtail:/var/log/nginx/mtail
     ports:
       - "9091:9091"
-      - "8888:8888"
+      - "8080:8080"
     depends_on:
       - backend1
       - backend2
     networks: [thrift_backend_net]
 
   nginx_exporter:
-    image: nginx/nginx-prometheus-exporter:0.11.0
+    image: nginx/nginx-prometheus-exporter:latest
     container_name: nginx_exporter_thrift
     environment:
-      - -nginx.scrape-uri=http://nginx_thrift:8888/nginx_status
+      - -nginx.scrape-uri=http://nginx_thrift:8080/nginx_status
       - -nginx.access-log=/var/log/nginx/mtail/access.log
     volumes:
       - ./nginx/mtail:/var/log/nginx/mtail:ro
