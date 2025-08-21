@@ -64,7 +64,7 @@ public class ZaloMockController {
         String hostname = InetAddress.getLocalHost().getHostName();
         System.out.println("Handled by instance: " + hostname + ", Thread: " + Thread.currentThread());
 
-        Thread.sleep(100);
+        Thread.sleep(10);
 
         Map<String, Object> response = Map.of(
                 "error", 0,

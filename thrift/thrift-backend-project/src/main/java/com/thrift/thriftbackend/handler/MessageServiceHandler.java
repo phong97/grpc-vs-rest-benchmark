@@ -75,8 +75,8 @@ public class MessageServiceHandler implements MessageService.Iface {
     @Override
     public MessageResponse sendMessageNoRandomDelay(Message message) throws TException {
         try {
-            // delay for 100 milliseconds
-            Thread.sleep(100);
+            // delay for 10 milliseconds
+            Thread.sleep(10);
 
             String msgId = UUID.randomUUID().toString().substring(0, 20);
             long now = System.currentTimeMillis();

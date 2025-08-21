@@ -11,10 +11,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  *
@@ -53,35 +56,36 @@ public class SendMessageLoadTest {
 
     @Test
     public void loadTest_sendMessageNoDelay() throws InterruptedException {
-        int numThreads = 100; // Number of threads to simulate
-        int totalMessages = 10000;
+        int numThreads = 100;
+        int totalMessages = 1_000_000;
         int messagesPerThread = totalMessages / numThreads;
         long startTime = System.currentTimeMillis();
 
-        ExecutorService vtExec1 = Executors.newVirtualThreadPerTaskExecutor();
-        ExecutorService vtExec2 = Executors.newFixedThreadPool(numThreads); // Using a fixed thread pool to slow down the execution
+        ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
 
-        CompletableFuture<?>[] completableFutures = new CompletableFuture[numThreads];
-        for (int i = 0; i < numThreads; i++) {
-            final int threadIndex = i;
-            completableFutures[i] = CompletableFuture.runAsync(() -> {
-                logger.info("Thread {} started", threadIndex);
-                long threadStartTime = System.currentTimeMillis();
+        List<Future<?>> futures = new ArrayList<>();
+        for (int i = 0; i < totalMessages; i++) {
+            futures.add(executorService.submit(() -> {
                 try {
-                    test_sendMessageNoDelay(vtExec2, messagesPerThread);
+                    sendMessageNoDelay();
                 } catch (Exception ex) {
-                    logger.error("Error in thread {}: {}", threadIndex, ex.getMessage(), ex);
+                    logger.error(ex.getMessage(), ex);
                 }
-                long threadEndTime = System.currentTimeMillis();
-                long threadDuration = threadEndTime - threadStartTime;
-                logger.info("Thread {} completed: {} messages, duration: {} ms", threadIndex, messagesPerThread, threadDuration);
-                double messagesPerSecond = (messagesPerThread * 1000.0) / threadDuration;
-                logger.info("Thread {} messages per second: {}", threadIndex, messagesPerSecond);
-                logger.info("Thread {} finished", threadIndex);
-            }, vtExec1);
+            }));
         }
 
-        CompletableFuture.allOf(completableFutures).join();
+        logger.info("Starting load test with {} threads, each sending {} messages", numThreads, messagesPerThread);
+
+        AtomicInteger threadIndex = new AtomicInteger();
+        futures.forEach(future -> {
+            try {
+                logger.info("Waiting for future task to complete for thread {}", threadIndex.getAndIncrement());
+                future.get();
+            } catch (Exception e) {
+                logger.error("Error in future task: {}", e.getMessage(), e);
+            }
+        });
+        executorService.shutdownNow();
 
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
@@ -91,12 +95,25 @@ public class SendMessageLoadTest {
     }
 
     private void test_sendMessageNoDelay(ExecutorService executor, int totalMessages) {
-        CompletableFuture<?>[] completableFutures = new CompletableFuture[totalMessages];
+        List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < totalMessages; i++) {
-            completableFutures[i] = CompletableFuture.runAsync(this::sendMessageNoDelay, executor);
+            futures.add(executor.submit(() -> {
+                try {
+                    sendMessageNoDelay();
+                } catch (Exception ex) {
+                    logger.error("Error sending message: {}", ex.getMessage(), ex);
+                }
+            }));
         }
 
-        CompletableFuture.allOf(completableFutures).join();
+        futures.forEach(future -> {
+            try {
+                future.get(); // Wait for each task to complete
+            } catch (Exception e) {
+                logger.error("Error in future task: {}", e.getMessage(), e);
+            }
+        });
+        logger.info("All messages sent in this batch");
     }
 
     private void sendMessageNoDelay() {

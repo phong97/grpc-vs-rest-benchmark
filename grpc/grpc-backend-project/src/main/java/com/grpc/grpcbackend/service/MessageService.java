@@ -82,7 +82,7 @@ public class MessageService extends MessageServiceGrpc.MessageServiceImplBase {
     public void sendMessageNoRandomDelay(MessageRequest request, StreamObserver<MessageResponse> responseObserver) {
         try {
             // delay for 100 milliseconds
-            Thread.sleep(100);
+            Thread.sleep(10);
 
             String msgId = UUID.randomUUID().toString().substring(0, 20);
             long now = System.currentTimeMillis();

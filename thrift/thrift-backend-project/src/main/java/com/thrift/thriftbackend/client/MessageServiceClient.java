@@ -30,16 +30,16 @@ public class MessageServiceClient {
     @Value("${thrift.server.port:9091}")
     private int port;
 
-    @Value("${thrift.client.pool.maxSize:1000}")
+    @Value("${thrift.client.pool.maxSize:2000}")
     private int maxPoolSize;
 
-    @Value("${thrift.client.pool.minIdle:0}")
+    @Value("${thrift.client.pool.minIdle:100}")
     private int minIdle;
 
-    @Value("${thrift.client.pool.maxIdle:8}")
+    @Value("${thrift.client.pool.maxIdle:1000}")
     private int maxIdle;
 
-    @Value("${thrift.client.pool.borrowTimeoutMillis:10000}")
+    @Value("${thrift.client.pool.borrowTimeoutMillis:100}")
     private int borrowTimeoutMillis;
 
     // request timeout in milliseconds
@@ -63,6 +63,18 @@ public class MessageServiceClient {
             });
             ensureMinIdle();
             housekeeper.scheduleAtFixedRate(this::safeEnsureMinIdle, 1, 1, TimeUnit.SECONDS);
+        }
+
+        for (int i = 0; i < minIdle; i++) {
+            try {
+                ClientConnection conn = createNewConnection();
+                if (!pool.offer(conn)) {
+                    closeQuietly(conn);
+                    permits.release();
+                }
+            } catch (Exception e) {
+                permits.release();
+            }
         }
     }
 
@@ -93,26 +105,20 @@ public class MessageServiceClient {
         }
 
         try {
-            return createNewConnection();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create Thrift client", e);
+            if (!permits.tryAcquire(borrowTimeoutMillis, TimeUnit.MILLISECONDS)) {
+                throw new RuntimeException("Timeout acquiring connection from pool");
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for connection", ie);
         }
 
-//        try {
-//            if (!permits.tryAcquire(borrowTimeoutMillis, TimeUnit.MILLISECONDS)) {
-//                throw new RuntimeException("Timeout acquiring connection from pool");
-//            }
-//        } catch (InterruptedException ie) {
-//            Thread.currentThread().interrupt();
-//            throw new RuntimeException("Interrupted while waiting for connection", ie);
-//        }
-//
-//        try {
-//            return createNewConnection();
-//        } catch (Exception e) {
-//            permits.release();
-//            throw new RuntimeException("Failed to create Thrift client", e);
-//        }
+        try {
+            return createNewConnection();
+        } catch (Exception e) {
+            permits.release();
+            throw new RuntimeException("Failed to create Thrift client", e);
+        }
     }
 
     public void releaseConnection(ClientConnection conn) {
