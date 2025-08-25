@@ -1,6 +1,8 @@
 # gRPC vs REST Performance Benchmark
 
-A comprehensive performance benchmarking project comparing gRPC and REST API implementations using Spring Boot with Java 21 Virtual Threads.
+A comprehensive performance benchmarking project comparing gRPC & REST API & APACHE THRIFT implementations using Spring Boot with Java 21 Virtual Threads.
+
+Presentation slide: https://docs.google.com/presentation/d/1Di1Pb4XVcBCwhuM6yNRgIOMptYCn3Wzk6w6dABqvCYc/edit?usp=sharing
 
 ## 🎯 Project Overview
 
@@ -12,16 +14,31 @@ This project implements identical messaging API functionality using both gRPC an
 ## 🏗️ Architecture
 
 ### REST Backend
-- **Framework**: Spring Boot 3.5.4 with Jetty (excluding Tomcat)
-- **Concurrency**: Java 21 Virtual Threads via custom configuration
-- **Load Balancing**: Nginx reverse proxy with 2 backend instances
-- **API**: Mock Zalo messaging service with realistic latency simulation
+- Framework: Spring Boot 3.5.4 with Jetty (Tomcat excluded)
+- Concurrency: Java 21 Virtual Threads via custom Jetty thread pool configuration
+- Load Balancing: Nginx reverse proxy with 2 backend instances
+- Endpoints:
+  - POST /zalo/send-message (random latency distribution)
+  - POST /zalo/send-message-no-random-delay (near constant latency ~10ms + processing)
 
 ### gRPC Backend  
-- **Framework**: Spring Boot 3.5.4 with Spring gRPC
-- **Protocol**: gRPC with Protocol Buffers
-- **Service**: MessageService implementing template message sending
-- **Concurrency**: Java 21 Virtual Threads support
+- Framework: Spring Boot 3.5.4 with Spring gRPC
+- Protocol: gRPC (HTTP/2) + Envoy (as both gRPC LB & JSON -> gRPC transcoder)
+- Service: MessageService (sendMessage, sendMessageNoRandomDelay)
+- Concurrency: Java 21 Virtual Threads (JVM level usage for request handling)
+- Gateways:
+  - Envoy gRPC load balancer (port 9091)
+  - Envoy JSON-to-gRPC transcoder (port 8081) exposing same REST-like paths mapped to gRPC via google.api.http annotations
+
+### Thrift Backend (Experimental)
+- Framework: Spring Boot 3.5.4 + embedded Thrift server (TThreadedSelectorServer)
+- Protocol: Thrift binary protocol over framed, non-blocking transport
+- Concurrency: Virtual Thread backed executor (custom ThreadPoolExecutor using Thread.ofVirtual())
+- Load Balancing: Nginx (2 backend instances) similar to REST pattern
+- Endpoints: Thrift service (MessageService) methods:
+  - sendMessage(Message) -> MessageResponse (random latency)
+  - sendMessageNoRandomDelay(Message) -> MessageResponse (baseline latency)
+- Metrics: Same Micrometer counters & Prometheus integration
 
 ## 📁 Project Structure
 
@@ -30,54 +47,43 @@ grpc-vs-rest-benchmark/
 ├── grpc/
 │   ├── docker-compose.yml
 │   ├── envoy/
-│   │   └── envoy.yaml
+│   │   ├── envoy_grpc.yaml                 # gRPC LB
+│   │   ├── envoy_json_to_grpc.yaml         # JSON -> gRPC transcoder
+│   │   └── message.pd                      # Proto descriptor set
 │   ├── grpc-backend-project/
 │   │   ├── build.gradle
 │   │   ├── Dockerfile
-│   │   ├── src/
-│   │   │   ├── main/
-│   │   │   │   ├── java/com/
-│   │   │   │   ├── proto/message.proto
-│   │   │   │   └── resources/application.properties
-│   │   │   └── test/java/com/
-│   ├── monitoring/
-│   │   ├── prometheus.yml
-│   │   └── grafana/
-│   │       ├── datasources/
-│   │       └── dashboards/
+│   │   ├── src/main/proto/message.proto
+│   │   └── src/main/java/... (service impl)
+│   ├── monitoring/ (Prometheus, Grafana)
 ├── rest/
 │   ├── docker-compose.yml
-│   ├── nginx/
-│   │   └── nginx.conf
+│   ├── nginx/nginx.conf                    # LB & access log
 │   ├── rest-backend-project/
 │   │   ├── build.gradle
 │   │   ├── Dockerfile
-│   │   ├── src/
-│   │   │   ├── main/
-│   │   │   │   ├── java/com/
-│   │   │   │   └── resources/application.properties
-│   │   │   └── test/java/com/
+│   │   ├── src/main/java/... (controller)
+│   │   └── src/main/resources/application.properties
 ├── thrift/
-│   └── thrift-backend-project/
-│       ├── build.gradle
-│       ├── src/
-│       │   ├── main/
-│       │   │   ├── java/com/
-│       │   │   └── resources/application.properties
-│       │   └── test/java/com/
+│   ├── docker-compose.yml                  # 2 Thrift instances + nginx + monitoring
+│   ├── thrift-backend-project/
+│   │   ├── build.gradle
+│   │   ├── src/main/thrift/message.thrift  # Thrift IDL
+│   │   ├── src/main/java/... (handler, server config)
+│   │   └── thrift-gen/ (bundled thrift compiler)
 ├── README.md
-└── note.txt
+└── docs/
 ```
 
 ## 🚀 Quick Start
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/grpc-vs-rest-benchmark.git
+   git clone https://github.com/phong97/grpc-vs-rest-vs-thrift-benchmark
    cd grpc-vs-rest-benchmark
    ```
 
-2. **Build the backend services**
+2. **Build the backend services** (produces fat jars `rest-backend.jar` & `grpc-backend.jar`)
    ```bash
    cd rest/rest-backend-project
    ./gradlew build
@@ -85,7 +91,7 @@ grpc-vs-rest-benchmark/
    ./gradlew build
    ```
 
-3. **Start the services with Docker Compose**
+3. **Start the services with Docker Compose** (each stack provides 2 instances + LB/proxy + monitoring)
    - For REST:
      ```bash
      cd rest
@@ -98,8 +104,10 @@ grpc-vs-rest-benchmark/
      ```
 
 4. **Access monitoring dashboards**
-   - Prometheus and Grafana are available in the `grpc/monitoring` directory.
-   - Grafana dashboards for system, JVM, and Spring Boot metrics are pre-configured.
+- REST stack: Prometheus (9090), Grafana (3000), Telegraf exporter (9273), Nginx access log (mounted)
+- gRPC stack: Prometheus (9090), Grafana (3000), Envoy admin (9901 & 9911), JSON gateway (8081), gRPC gateway (9091)
+- Thrift stack: Prometheus (9090), Grafana (3000), Nginx LB (9091) + Telegraf (9273)
+- Dashboards: JVM, Spring Boot, Envoy, System metrics auto-provisioned
 
 ### Prerequisites
 - **Java 21+** (for Virtual Threads support)
@@ -130,6 +138,32 @@ cd grpc-backend/grpc-backend-project
 # gRPC service runs on default port
 ```
 
+### Thrift Backend Setup (Experimental)
+
+```bash
+cd thrift/thrift-backend-project
+./gradlew build
+./gradlew bootRun
+# Thrift server (binary protocol) listening default host:port (localhost:9091) unless overridden
+```
+
+Docker Compose (2 instances + nginx + monitoring):
+```bash
+cd thrift
+docker-compose up --build
+```
+
+Client example pseudo-code (Java):
+```java
+TSocket socket = new TSocket(host, 9091, 3000);
+TTransport transport = new TFramedTransport(socket);
+transport.open();
+TProtocol proto = new TBinaryProtocol(transport);
+MessageService.Client client = new MessageService.Client(proto);
+Message msg = new Message().setPhone("84987654321").setTemplateId("7895417a7d3f9461cd2e");
+MessageResponse resp = client.sendMessage(msg);
+```
+
 ## 📊 Monitoring & Metrics
 
 - **Spring Boot Actuator**: Exposes metrics at `/actuator/prometheus` for Prometheus scraping.
@@ -138,93 +172,129 @@ cd grpc-backend/grpc-backend-project
 
 ## 📝 API Documentation
 
-### REST API
+### REST & JSON-gRPC Transcoded API
 
-**Endpoint**: `POST /zalo/message/template`
+Endpoints (both served by REST backend via Nginx and by Envoy JSON->gRPC gateway):
+- POST /zalo/send-message
+- POST /zalo/send-message-no-random-delay
 
-**Request Body**:
+Sample Request Body (the realistic provided example):
 ```json
 {
-  "phone": "0123456789",
-  "template_id": "template_001", 
+  "phone": "84987654321",
+  "template_id": "7895417a7d3f9461cd2e",
   "template_data": {
-    "name": "John Doe",
-    "amount": "100,000 VND"
+    "ky": "1",
+    "thang": "4/2020",
+    "start_date": "20/03/2020",
+    "end_date": "20/04/2020",
+    "customer": "Nguyễn Thị Hoàng Anh",
+    "cid": "PE010299485",
+    "address": "VNG Campus, TP.HCM",
+    "amount": "100",
+    "total": "100000"
   },
-  "tracking_id": "track_123"
+  "tracking_id": "tracking_id"
 }
 ```
 
-**Response**:
+Typical Response Body:
 ```json
 {
   "error": 0,
   "message": "Success",
   "data": {
-    "msg_id": "msg_12345abcde67890f",
-    "sent_time": 1654072800000,
+    "msg_id": "<20-char-id>",
+    "sent_time": 1710000000000,
     "sending_mode": "1",
-    "quota": {
-      "dailyQuota": "500",
-      "remainingQuota": "499"
-    }
+    "quota": { "dailyQuota": "500", "remainingQuota": "499" }
   }
 }
 ```
 
-**cURL Example**:
+Example cURL (REST via Nginx or Envoy JSON gateway on 8081):
 ```bash
-curl -X POST http://localhost:8081/zalo/message/template \
-  -H "Content-Type: application/json" \
+curl -X POST http://localhost:8081/zalo/send-message \
+  -H 'Content-Type: application/json' \
   -d '{
-    "phone": "0123456789",
-    "template_id": "welcome_template",
-    "template_data": {"name": "Alice"},
-    "tracking_id": "test_001"
-  }'
+  "phone": "84987654321",
+  "template_id": "7895417a7d3f9461cd2e",
+  "template_data": {
+    "ky": "1",
+    "thang": "4/2020",
+    "start_date": "20/03/2020",
+    "end_date": "20/04/2020",
+    "customer": "Nguyễn Thị Hoàng Anh",
+    "cid": "PE010299485",
+    "address": "VNG Campus, TP.HCM",
+    "amount": "100",
+    "total": "100000"
+  },
+  "tracking_id": "tracking_id"
+}'
 ```
 
 ### gRPC API
 
-**Service**: `MessageService`  
-**Method**: `SendTemplate`
+**gRPC Service**: MessageService
 
-**Proto Definition**:
+Methods:
+- rpc sendMessage(MessageRequest) returns (MessageResponse)
+- rpc sendMessageNoRandomDelay(MessageRequest) returns (MessageResponse)
+
+Proto (excerpt):
 ```protobuf
 service MessageService {
-  rpc SendTemplate (MessageRequest) returns (MessageResponse);
-}
-
-message MessageRequest {
-  string phone = 1;
-  string template_id = 2;
-  map<string, string> template_data = 3;
-  string tracking_id = 4;
-}
-
-message MessageResponse {
-  int32 error = 1;
-  string message = 2;
-  string msg_id = 3;
-  int64 sent_time = 4;
-  string sending_mode = 5;
-  Quota quota = 6;
-  
-  message Quota {
-    string daily_quota = 1;
-    string remaining_quota = 2;
+  rpc sendMessage(MessageRequest) returns (MessageResponse) {
+    option (google.api.http) = { post: "/zalo/send-message" body: "*" };
   }
+  rpc sendMessageNoRandomDelay(MessageRequest) returns (MessageResponse) {
+    option (google.api.http) = { post: "/zalo/send-message-no-random-delay" body: "*" };
+  }
+}
+```
+
+### Thrift API (IDL Excerpt)
+```thrift
+namespace java com.thrift.thriftbackend
+
+struct Message {
+  1: required string phone,
+  2: required string templateId,
+  3: optional map<string,string> templateData,
+  4: optional string trackingId
+}
+
+struct Quota {
+  1: optional string dailyQuota,
+  2: optional string remainingQuota
+}
+
+struct MessageResponse {
+  1: required i32 error,
+  2: required string message,
+  3: optional string msgId,
+  4: optional i64 sendTime,
+  5: optional string sendingMode,
+  6: optional Quota quota
+}
+
+service MessageService {
+  MessageResponse sendMessage(1: Message message)
+  MessageResponse sendMessageNoRandomDelay(1: Message message)
 }
 ```
 
 ## ⚡ Performance Features
 
 ### Latency Simulation
-Both implementations include realistic latency patterns:
-- **95%** of requests: 100-500ms (normal)
-- **3%** of requests: 500-1000ms (slower)  
-- **0.05%** of requests: 1000-3000ms (slow)
-- **0.005%** of requests: 3000-5000ms (very slow)
+Both implementations share identical probabilistic latency (applied only on sendMessage / sendMessage RPC):
+- 95%: 100–500 ms
+- 3%: 500–1000 ms  
+- 0.05%: 1000–3000 ms
+- 0.005%: 3000–5000 ms
+
+The /send-message-no-random-delay endpoint/RPC keeps latency near constant (~10 ms sleep + processing) to provide a control baseline.
 
 ### Virtual Threads Configuration
 Java 21 Virtual Threads are enabled for maximum concurrent request handling:
@@ -247,84 +317,8 @@ public class VirtualThreadConfig {
 
 ## 🧪 Benchmarking
 
-### Load Testing Tools
-Recommended tools for performance testing:
-- **Apache Bench (ab)**: Simple HTTP load testing
-- **wrk**: Modern HTTP benchmarking tool  
-- **JMeter**: GUI-based comprehensive testing
-- **ghz**: gRPC-specific load testing tool
+Presentation slide: https://docs.google.com/presentation/d/1Di1Pb4XVcBCwhuM6yNRgIOMptYCn3Wzk6w6dABqvCYc/edit?usp=sharing
 
-### Sample Load Test Commands
-
-**REST API with wrk**:
-```bash
-wrk -t12 -c400 -d30s -s script.lua http://localhost:8081/zalo/message/template
-```
-
-**gRPC with ghz**:
-```bash
-ghz --insecure \
-  --proto ./grpc-backend/grpc-backend-project/src/main/proto/message.proto \
-  --call MessageService.SendTemplate \
-  -d '{"phone":"0123456789","template_id":"test","template_data":{"name":"Test"},"tracking_id":"load_test"}' \
-  --total=10000 \
-  --concurrency=50 \
-  localhost:9090
-```
-
-### Key Metrics to Compare
-- **Requests per second (RPS)**
-- **95th percentile latency**  
-- **Memory usage**
-- **CPU utilization**
-- **Network bandwidth**
-- **Connection overhead**
-
-## 🔧 Configuration
-
-### REST Backend Config
-```properties
-# rest-backend-project/src/main/resources/application.properties
-spring.application.name=rest-backend-project
-server.port=8080
-```
-
-### gRPC Backend Config  
-```properties
-# grpc-backend-project/src/main/resources/application.properties
-spring.application.name=grpc-backend
-```
-
-### Docker Compose for REST Load Balancing
-```yaml
-services:
-  backend1:
-    build: ./rest-backend-project
-    ports: ["8080"]
-  backend2:  
-    build: ./rest-backend-project
-    ports: ["8080"]
-  nginx:
-    image: nginx:latest
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    ports:
-      - "8081:8081"
-    depends_on: [backend1, backend2]
-```
-
-## 🏆 Expected Benchmark Results
-
-**Typical performance characteristics**:
-
-| Metric | REST | gRPC | Winner |
-|--------|------|------|---------|
-| Serialization Speed | JSON (slower) | Protobuf (faster) | gRPC |
-| Payload Size | Larger (JSON) | Smaller (binary) | gRPC |  
-| HTTP/2 Features | Limited | Full support | gRPC |
-| Browser Support | Excellent | Limited | REST |
-| Debugging | Easy (human readable) | Harder (binary) | REST |
-| Ecosystem | Mature | Growing | REST |
 
 ## 🛠️ Development
 
@@ -332,51 +326,53 @@ services:
 
 **REST Backend**:
 ```bash
-cd rest-backend/rest-backend-project
-./gradlew clean build
+cd rest/rest-backend-project
+./gradlew clean build -x test
 ```
 
 **gRPC Backend**:
 ```bash
-cd grpc-backend/grpc-backend-project  
-./gradlew clean build
+cd grpc/grpc-backend-project  
+./gradlew clean build -x test
 ```
 
-### Running Tests
+**Thrift Backend**:
 ```bash
-./gradlew test
+cd thrift/thrift-backend-project  
+./gradlew clean build -x test
 ```
 
-### Docker Build
+### Docker Run
 ```bash
-# REST
-docker build -t rest-backend ./rest-backend/rest-backend-project
-
-# gRPC  
-docker build -t grpc-backend ./grpc-backend/grpc-backend-project
+docker compose up --build
 ```
 
 ## 🚧 Development Status
 
 ### ✅ Completed
-- [x] REST backend with Virtual Threads
-- [x] Mock Zalo API implementation  
-- [x] Docker containerization
-- [x] Nginx load balancing
-- [x] Realistic latency simulation
-- [x] gRPC proto definition
+- REST backend with Virtual Threads
+- gRPC backend service implementation & proto definition
+- Mock Zalo API logic (shared semantics)  
+- Docker containerization (REST & gRPC stacks)
+- Nginx (REST) & Envoy (gRPC LB + JSON transcoding) load balancing
+- Realistic latency simulation
+- Monitoring stack (Prometheus, Grafana, Telegraf metrics, Envoy admin)
+
+### 🧪 Experimental
+- Thrift backend (binary protocol, virtual-thread executor) running & instrumented
 
 ### 🔄 In Progress  
-- [ ] gRPC service implementation
-- [ ] gRPC Docker configuration
-- [ ] Performance testing scripts
-- [ ] Benchmark result analysis tools
+- Performance testing scripts & automation
+- Benchmark result aggregation & analysis tooling
+- Thrift prototype (planned)
 
 ### 📋 Todo
-- [ ] Monitoring and metrics collection
-- [ ] Database integration for realistic workloads
-- [ ] CI/CD pipeline for automated benchmarking
-- [ ] Grafana dashboards for result visualization
+- Database integration for realistic I/O workload
+- CI/CD pipeline for automated periodic benchmark runs
+- Advanced Grafana dashboards for comparison (REST vs gRPC vs future Thrift)
+- Automated report generation (PDF/Slides)
+- Unified benchmark runner covering REST / gRPC / Thrift
+- Add official Thrift benchmarking scripts & docs
 
 ## 🤝 Contributing
 
@@ -394,5 +390,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Spring Boot Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/)
 - [gRPC Java](https://grpc.io/docs/languages/java/)
+- [Apache Thrift](https://thrift.apache.org/)
 - [Prometheus](https://prometheus.io/)
 - [Grafana](https://grafana.com/)
+- [Envoy] (https://www.envoyproxy.io/docs/envoy/v1.35.1/)
+- [Nginx] (https://nginx.org/en/docs/index.html)
