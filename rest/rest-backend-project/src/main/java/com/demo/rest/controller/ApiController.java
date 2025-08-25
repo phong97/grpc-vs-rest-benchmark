@@ -19,14 +19,14 @@ import java.util.UUID;
  * @author phonghv
  */
 @RestController
-@RequestMapping("/zalo")
-public class ZaloMockController {
+@RequestMapping("/api")
+public class ApiController {
     private final Random random = new Random();
 
     private final Counter sendMessageCounter;
     private final Counter sendMessageNoDelayCounter;
 
-    public ZaloMockController(MeterRegistry meterRegistry) {
+    public ApiController(MeterRegistry meterRegistry) {
         this.sendMessageCounter = Counter.builder("message_service_send_total")
                 .description("Số lần gọi sendMessage()")
                 .tag("method", "sendMessage")

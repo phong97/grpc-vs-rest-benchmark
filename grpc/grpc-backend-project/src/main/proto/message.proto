@@ -10,14 +10,14 @@ import "google/api/annotations.proto";
 service MessageService {
   rpc sendMessage(MessageRequest) returns (MessageResponse) {
     option (google.api.http) = {
-      post: "/zalo/send-message"
+      post: "/api/send-message"
       body: "*"
     };
   };
 
   rpc sendMessageNoRandomDelay(MessageRequest) returns (MessageResponse) {
     option (google.api.http) = {
-      post: "/zalo/send-message-no-random-delay"
+      post: "/api/send-message-no-random-delay"
       body: "*"
     };
   };
