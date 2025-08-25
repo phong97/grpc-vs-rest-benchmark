@@ -72,7 +72,7 @@ grpc-vs-rest-benchmark/
 │   │   ├── src/main/java/... (handler, server config)
 │   │   └── thrift-gen/ (bundled thrift compiler)
 ├── README.md
-└── docs/
+└── monitor-results/
 ```
 
 ## 🚀 Quick Start
@@ -315,11 +315,6 @@ public class VirtualThreadConfig {
 }
 ```
 
-## 🧪 Benchmarking
-
-Presentation slide: https://docs.google.com/presentation/d/1Di1Pb4XVcBCwhuM6yNRgIOMptYCn3Wzk6w6dABqvCYc/edit?usp=sharing
-
-
 ## 🛠️ Development
 
 ### Building Projects
@@ -347,32 +342,10 @@ cd thrift/thrift-backend-project
 docker compose up --build
 ```
 
-## 🚧 Development Status
+## 🧪 Benchmarking
 
-### ✅ Completed
-- REST backend with Virtual Threads
-- gRPC backend service implementation & proto definition
-- Mock Zalo API logic (shared semantics)  
-- Docker containerization (REST & gRPC stacks)
-- Nginx (REST) & Envoy (gRPC LB + JSON transcoding) load balancing
-- Realistic latency simulation
-- Monitoring stack (Prometheus, Grafana, Telegraf metrics, Envoy admin)
-
-### 🧪 Experimental
-- Thrift backend (binary protocol, virtual-thread executor) running & instrumented
-
-### 🔄 In Progress  
-- Performance testing scripts & automation
-- Benchmark result aggregation & analysis tooling
-- Thrift prototype (planned)
-
-### 📋 Todo
-- Database integration for realistic I/O workload
-- CI/CD pipeline for automated periodic benchmark runs
-- Advanced Grafana dashboards for comparison (REST vs gRPC vs future Thrift)
-- Automated report generation (PDF/Slides)
-- Unified benchmark runner covering REST / gRPC / Thrift
-- Add official Thrift benchmarking scripts & docs
+- Presentation slide: https://docs.google.com/presentation/d/1Di1Pb4XVcBCwhuM6yNRgIOMptYCn3Wzk6w6dABqvCYc/edit?usp=sharing
+- Monitor result: https://github.com/phong97/grpc-vs-rest-vs-thrift-benchmark/tree/master/monitor-results
 
 ## 🤝 Contributing
 
@@ -382,10 +355,6 @@ docker compose up --build
 4. Push to branch (`git push origin feature/amazing-feature`)  
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 📚 References
 
 - [Spring Boot Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/)
@@ -393,5 +362,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Apache Thrift](https://thrift.apache.org/)
 - [Prometheus](https://prometheus.io/)
 - [Grafana](https://grafana.com/)
-- [Envoy] (https://www.envoyproxy.io/docs/envoy/v1.35.1/)
-- [Nginx] (https://nginx.org/en/docs/index.html)
+- [Envoy](https://www.envoyproxy.io/docs/envoy/v1.35.1/)
+- [Nginx](https://nginx.org/en/docs/index.html)
