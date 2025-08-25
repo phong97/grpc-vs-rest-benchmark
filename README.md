@@ -18,8 +18,8 @@ This project implements identical messaging API functionality using both gRPC an
 - Concurrency: Java 21 Virtual Threads via custom Jetty thread pool configuration
 - Load Balancing: Nginx reverse proxy with 2 backend instances
 - Endpoints:
-  - POST /zalo/send-message (random latency distribution)
-  - POST /zalo/send-message-no-random-delay (near constant latency ~10ms + processing)
+  - POST /api/send-message (random latency distribution)
+  - POST /api/send-message-no-random-delay (near constant latency ~10ms + processing)
 
 ### gRPC Backend  
 - Framework: Spring Boot 3.5.4 with Spring gRPC
@@ -86,9 +86,11 @@ grpc-vs-rest-benchmark/
 2. **Build the backend services** (produces fat jars `rest-backend.jar` & `grpc-backend.jar`)
    ```bash
    cd rest/rest-backend-project
-   ./gradlew build
+   ./gradlew build -x test
    cd ../../grpc/grpc-backend-project
-   ./gradlew build
+   ./gradlew build -x test
+   cd ../../../thrift/thrift-backend-project
+   ./gradlew build -x test
    ```
 
 3. **Start the services with Docker Compose** (each stack provides 2 instances + LB/proxy + monitoring)
@@ -103,6 +105,12 @@ grpc-vs-rest-benchmark/
      docker-compose up --build
      ```
 
+    - For Thrift (experimental):
+      ```bash
+        cd thrift
+        docker-compose up --build
+      ```
+
 4. **Access monitoring dashboards**
 - REST stack: Prometheus (9090), Grafana (3000), Telegraf exporter (9273), Nginx access log (mounted)
 - gRPC stack: Prometheus (9090), Grafana (3000), Envoy admin (9901 & 9911), JSON gateway (8081), gRPC gateway (9091)
@@ -110,59 +118,10 @@ grpc-vs-rest-benchmark/
 - Dashboards: JVM, Spring Boot, Envoy, System metrics auto-provisioned
 
 ### Prerequisites
+- **Linux**
 - **Java 21+** (for Virtual Threads support)
 - **Docker & Docker Compose** (for containerized deployment)
 - **Gradle** (wrapper included)
-
-### REST Backend Setup
-
-1. **Single Instance**:
-```bash
-cd rest-backend/rest-backend-project
-./gradlew bootRun
-# Service runs on http://localhost:8080
-```
-
-2. **Load Balanced (Recommended)**:
-```bash
-cd rest-backend
-docker compose up --build
-# Service runs on http://localhost:8081 (nginx proxy)
-```
-
-### gRPC Backend Setup
-
-```bash
-cd grpc-backend/grpc-backend-project
-./gradlew bootRun
-# gRPC service runs on default port
-```
-
-### Thrift Backend Setup (Experimental)
-
-```bash
-cd thrift/thrift-backend-project
-./gradlew build
-./gradlew bootRun
-# Thrift server (binary protocol) listening default host:port (localhost:9091) unless overridden
-```
-
-Docker Compose (2 instances + nginx + monitoring):
-```bash
-cd thrift
-docker-compose up --build
-```
-
-Client example pseudo-code (Java):
-```java
-TSocket socket = new TSocket(host, 9091, 3000);
-TTransport transport = new TFramedTransport(socket);
-transport.open();
-TProtocol proto = new TBinaryProtocol(transport);
-MessageService.Client client = new MessageService.Client(proto);
-Message msg = new Message().setPhone("84987654321").setTemplateId("7895417a7d3f9461cd2e");
-MessageResponse resp = client.sendMessage(msg);
-```
 
 ## 📊 Monitoring & Metrics
 
@@ -175,8 +134,8 @@ MessageResponse resp = client.sendMessage(msg);
 ### REST & JSON-gRPC Transcoded API
 
 Endpoints (both served by REST backend via Nginx and by Envoy JSON->gRPC gateway):
-- POST /zalo/send-message
-- POST /zalo/send-message-no-random-delay
+- POST /api/send-message
+- POST /api/send-message-no-random-delay
 
 Sample Request Body (the realistic provided example):
 ```json
@@ -214,7 +173,7 @@ Typical Response Body:
 
 Example cURL (REST via Nginx or Envoy JSON gateway on 8081):
 ```bash
-curl -X POST http://localhost:8081/zalo/send-message \
+curl -X POST http://localhost:8081/api/send-message \
   -H 'Content-Type: application/json' \
   -d '{
   "phone": "84987654321",
@@ -246,10 +205,10 @@ Proto (excerpt):
 ```protobuf
 service MessageService {
   rpc sendMessage(MessageRequest) returns (MessageResponse) {
-    option (google.api.http) = { post: "/zalo/send-message" body: "*" };
+    option (google.api.http) = { post: "/api/send-message" body: "*" };
   }
   rpc sendMessageNoRandomDelay(MessageRequest) returns (MessageResponse) {
-    option (google.api.http) = { post: "/zalo/send-message-no-random-delay" body: "*" };
+    option (google.api.http) = { post: "/api/send-message-no-random-delay" body: "*" };
   }
 }
 ```
@@ -295,52 +254,6 @@ Both implementations share identical probabilistic latency (applied only on send
 - 0.005%: 3000–5000 ms
 
 The /send-message-no-random-delay endpoint/RPC keeps latency near constant (~10 ms sleep + processing) to provide a control baseline.
-
-### Virtual Threads Configuration
-Java 21 Virtual Threads are enabled for maximum concurrent request handling:
-
-```java
-@Configuration
-public class VirtualThreadConfig {
-    @Bean
-    public WebServerFactoryCustomizer<JettyServletWebServerFactory> customizer() {
-        return factory -> {
-            QueuedThreadPool threadPool = new QueuedThreadPool();
-            threadPool.setVirtualThreadsExecutor(
-                Executors.newVirtualThreadPerTaskExecutor()
-            );
-            factory.setThreadPool(threadPool);
-        };
-    }
-}
-```
-
-## 🛠️ Development
-
-### Building Projects
-
-**REST Backend**:
-```bash
-cd rest/rest-backend-project
-./gradlew clean build -x test
-```
-
-**gRPC Backend**:
-```bash
-cd grpc/grpc-backend-project  
-./gradlew clean build -x test
-```
-
-**Thrift Backend**:
-```bash
-cd thrift/thrift-backend-project  
-./gradlew clean build -x test
-```
-
-### Docker Run
-```bash
-docker compose up --build
-```
 
 ## 🧪 Benchmarking
 
